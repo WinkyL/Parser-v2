@@ -70,11 +70,20 @@ def argmax(probs):
 #===============================================================
 def greedy(probs):
   """"""
-  
+  ff = 1
   edges = np.argmax(probs, axis=1)
   cycles = True
   while cycles:
     cycles = find_cycles(edges)
+    if ff:
+	if cycles:	
+		#print ('haveC')
+		print (edges)
+		print (cycles)
+		cc = np.around(probs, decimals = 4)
+		print (cc)
+    	#else:	print ('noC')
+    ff = 0
     for cycle_vertices in cycles:
       # Get the best heads and their probabilities
       cycle_edges = edges[cycle_vertices]
@@ -141,6 +150,47 @@ def chu_liu_edmonds(probs):
   return edges
 
 #===============================================================
+def chuliu_greedy(probs):
+  """"""
+  
+  edges = np.argmax(probs, axis=1)
+  cycles = True
+  #count = 0
+  while cycles:
+    cycles = find_cycles(edges)
+    for cycle_vertices in cycles:
+      # Get the best heads and their probabilities
+      cycle_edges = edges[cycle_vertices]
+      cycle_probs = probs[cycle_vertices, cycle_edges]
+      # Get the second-best edges and their probabilities
+      probs[cycle_vertices, cycle_edges] = 0
+      backoff_edges = np.argmax(probs[cycle_vertices], axis=1)
+      backoff_probs = probs[cycle_vertices, backoff_edges]
+      probs[cycle_vertices, cycle_edges] = cycle_probs
+      # Find the node in the cycle that the model is the least confident about and its probability
+      new_root_list_in_cycle = backoff_probs - cycle_probs
+      #print (new_root_list_in_cycle)
+      if new_root_list_in_cycle[0] > new_root_list_in_cycle[1]:
+        new_root_in_cycle = 0
+      elif new_root_list_in_cycle[0] < new_root_list_in_cycle[1]:
+        new_root_in_cycle = 1
+      else:
+	#count++
+        if backoff_probs[0] >= backoff_probs[1]:
+          new_root_in_cycle = 0
+        else:
+          new_root_in_cycle = 1
+      #print (backoff_probs/cycle_probs)
+      #new_root_in_cycle = np.array(new_root_in_cycle)
+      new_cycle_root = cycle_vertices[new_root_in_cycle]
+      # Set the new root
+      probs[new_cycle_root, cycle_edges[new_root_in_cycle]] = 0
+      edges[new_cycle_root] = backoff_edges[new_root_in_cycle]
+  #print "chuliu-equal"
+  #print count
+  return edges
+
+#===============================================================
 def nonprojective(probs):
   """"""
   
@@ -151,6 +201,7 @@ def nonprojective(probs):
   
   #edges = chu_liu_edmonds(probs)
   edges = greedy(probs)
+  #edges = chuliu_greedy(probs)
   roots = find_roots(edges)
   best_edges = edges
   best_score = -np.inf
@@ -159,6 +210,7 @@ def nonprojective(probs):
       probs_ = make_root(probs, root)
       #edges_ = chu_liu_edmonds(probs_)
       edges_ = greedy(probs_)
+      #edges_ = chuliu_greedy(probs_)
       score = score_edges(probs_, edges_)
       if score > best_score:
         best_edges = edges_
